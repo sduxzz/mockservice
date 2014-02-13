@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Mockservice : mock方案" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Mockservice</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/fcfe/mockservice">View on GitHub</a>
+
+          <h1 id="project_title">Mockservice</h1>
+          <h2 id="project_tagline">mock方案</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/fcfe/mockservice/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/fcfe/mockservice/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="mockservice" class="anchor" href="#mockservice"><span class="octicon octicon-link"></span></a>mockservice</h1>
+
+<blockquote>
+<p>构造数据服务</p>
+</blockquote>
+
+<hr><h2>
+<a name="%E5%AE%89%E8%A3%85%E4%B8%8E%E9%85%8D%E7%BD%AE" class="anchor" href="#%E5%AE%89%E8%A3%85%E4%B8%8E%E9%85%8D%E7%BD%AE"><span class="octicon octicon-link"></span></a>安装与配置</h2>
+
+<ul>
+<li>gitup安装 (需要支持git协议)</li>
+</ul><blockquote>
+<p>npm install git://github.com/fcfe/mockservice.git</p>
+</blockquote>
+
+<ul>
+<li>选择npm安装</li>
+</ul><blockquote>
+<p>npm install mockservice</p>
+</blockquote>
+
+<p>-- 配置edp服务器</p>
+
+<blockquote>
+<p>配置方法: 在edp-webserver-config文件中添加如下代码</p>
+</blockquote>
+
+<div class="highlight highlight-js"><pre>    <span class="nx">exports</span><span class="p">.</span><span class="nx">port</span> <span class="o">=</span> <span class="mi">8848</span><span class="p">;</span>
+
+    <span class="kd">var</span> <span class="nx">ms</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'mockservice'</span><span class="p">);</span>
+    <span class="nx">ms</span><span class="p">.</span><span class="nx">config</span><span class="p">({</span><span class="nx">dir</span><span class="o">:</span> <span class="nx">__dirname</span> <span class="o">+</span> <span class="s1">'/phoenix/debug'</span><span class="p">});</span>
+
+    <span class="nx">exports</span><span class="p">.</span><span class="nx">getLocations</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="nx">location</span><span class="o">:</span> <span class="sr">/^\/request.ajax/</span><span class="p">,</span> 
+                <span class="nx">handler</span><span class="o">:</span> <span class="nx">ms</span><span class="p">.</span><span class="nx">request</span><span class="p">({})</span>
+            <span class="p">}</span>
+        <span class="p">];</span>
+    <span class="p">};</span>
+
+</pre></div>
+
+<p>-- 启动服务器</p>
+
+<blockquote>
+<p>edp ws start</p>
+</blockquote>
+
+<ul>
+<li>使用edp时建议mocksrvice安装在项目代码上一级目录, 如<code>F://fengchao/node_modules</code>
+</li>
+</ul><p>-- 使用独立mock服务器</p>
+
+<ul>
+<li>
+<p>如使用独立服务器; 需要全局安装 <code>npm install mocksrvice -g</code>; </p>
+
+<p>// 进入工作路径
+cd workspace</p>
+
+<p>// 启动mock服务器
+mock 8848</p>
+</li>
+</ul><hr><h3>
+<a name="%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E" class="anchor" href="#%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E"><span class="octicon octicon-link"></span></a>使用说明</h3>
+
+<blockquote>
+<p>启动程序后ms自动扫描目录下所有index.js文件及符合特定规则的文件（如果需要，规则可由ms-config.js文件配置）;
+mock文件不会立即加载；只有请求触发时会加载；且不进行缓存；</p>
+
+<p>测试：启动edp或mock程序；浏览器中测试，或发curl请求</p>
+</blockquote>
+
+<pre><code> http://localhost:8848/request.ajax?path=GET/auth&amp;param={}
+</code></pre>
+
+<hr><h2>
+<a name="%E6%9E%84%E9%80%A0mock%E6%95%B0%E6%8D%AE%E8%A7%84%E8%8C%83" class="anchor" href="#%E6%9E%84%E9%80%A0mock%E6%95%B0%E6%8D%AE%E8%A7%84%E8%8C%83"><span class="octicon octicon-link"></span></a>构造mock数据规范</h2>
+
+<p>-请求规范</p>
+
+<blockquote>
+<p>前端代码发送真实请求；请求路径符合request.ajax?path=XXX形式;参数param可以是POST或GET参数
+param符合严格规范的json格式</p>
+</blockquote>
+
+<ul>
+<li>构造数据代码规范</li>
+</ul><blockquote>
+<p>所有响应request.ajax?path={pathname}&amp;param={object}请求每个pathname对应一个mock文件；mock文件名<code>/</code>替换为<code>_</code>；
+独立mock文件命名为{pkgname}/{pathname}.js;</p>
+</blockquote>
+
+<ul>
+<li>对应每个接口应该指定一个响应函数；响应函数有固定参数列表(path, param)</li>
+<li>index.js 文件可以定义多个接口的响应函数 (但是不建议写到index文件)</li>
+<li><p>{pathname}.js 文件只能定义对应pathname的响应函数</p></li>
+<li>
+<p>ms-config.js 文件配置</p>
+
+<blockquote>
+<p>ms-config.js 文件可以放到目标文件夹下；只影响当前文件夹或子文件夹下的模块
+暂时只有两个配置项目<code>cache</code>表示是否需要缓存模块；<code>pathRegs</code>表示匹配服务规则；
+ms-config.js不是必需的；只有默认规则不满足需要时添加该文件即可；</p>
+</blockquote>
+</li>
+</ul><div class="highlight highlight-js"><pre>
+    <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"cache"</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+        <span class="s2">"pathRegs"</span><span class="o">:</span> <span class="p">[</span><span class="sr">/\w+_\w+/</span><span class="p">,</span> <span class="s1">'scookie'</span><span class="p">,</span> <span class="s1">'zebra'</span><span class="p">]</span>
+    <span class="p">};</span>
+
+</pre></div>
+
+<hr><h3>
+<a name="issue-todo" class="anchor" href="#issue-todo"><span class="octicon octicon-link"></span></a>ISSUE todo</h3>
+
+<ul>
+<li><p>构造数据支持简单物料读写逻辑</p></li>
+<li><p>构造数据模版</p></li>
+<li><p>构造数据工具方法</p></li>
+<li><p>构造数据规范</p></li>
+</ul>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Mockservice maintained by <a href="https://github.com/fcfe">fcfe</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("mockservice");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+
+  </body>
+</html>
