@@ -30,12 +30,16 @@ var contentType = {
 var timeoutSpan = 50;
 
 // 接受配置参数
-exports.config = function (config) {
-    if (config && config.dir) {
+exports.config = function(config) {
+    if (!config) {
+        return;
+    }
+
+    if (config.dir) {
         var custom = scan.scanDir(config.dir);
 
         // 合并配置信息
-        for (var item in custom) {
+        for ( var item in custom) {
             config[item] = custom[item];
         }
 
@@ -50,16 +54,26 @@ exports.config = function (config) {
 
         global.include = require('paw').require;
 
-         // 增加debugger 入口；方便mock调试
-        process.argv.forEach(function (item) {
+        // 增加debugger 入口；方便mock调试
+        process.argv.forEach(function(item) {
             if (item == '--debug') {
                 process._debugProcess(process.pid);
             }
         });
     }
+
+    // 针对多个项目的配置，比如 nirvana & innovation 同时进行mock
+    if (config.list && config.list.length > 0) {
+        for (var i = 0, n = config.list.length; i < n; i++) {
+            var item = config.list[i];
+            if(item.project && item.dir) {
+                scan.scanDirByProject(item.project, item.dir);
+            }
+        }
+    }
 };
 
-global.printError = function (exception, msg) {
+global.printError = function(exception, msg) {
     if (!process._logError) {
         return;
     }
@@ -72,7 +86,7 @@ global.printError = function (exception, msg) {
         // console log message in darkred
         console.log('\033[31m \033[05m ', exception.message, '\033[0m');
 
-        var logFile =  process._logError.logFile;
+        var logFile = process._logError.logFile;
 
         // 如果指定了logFile 错误日志打印到日志文件
         // 否则直接输出
@@ -80,9 +94,7 @@ global.printError = function (exception, msg) {
             logFile = require('path').join(process.cwd(), logFile);
 
             var errorMSG = [
-                msg,
-                exception.stack,
-                '\n'
+                msg, exception.stack, '\n'
             ].join('\n');
 
             require('fs').appendFile(logFile, errorMSG, function(err) {
@@ -100,10 +112,13 @@ function pack(obj) {
 }
 
 // 对外暴露的service接口
-exports.serve = function (request, response) {
-    var query= request.query; // 请求参数
-    var path = query.path; //请求路径信息
-    var result = {status: 200, data: null};
+exports.serve = function(request, response, opt_project) {
+    var query = request.query; // 请求参数
+    var path = query.path; // 请求路径信息
+    var result = {
+        status: 200,
+        data: null
+    };
 
     // 支持param和params两种参数接口
     var param = query.param || query.params || {};
@@ -128,7 +143,7 @@ exports.serve = function (request, response) {
         try {
             param = JSON.parse(param);
         } catch (ex) {
-            param = eval( '(' + param + ')');
+            param = eval('(' + param + ')');
         }
     }
 
@@ -148,7 +163,7 @@ exports.serve = function (request, response) {
     }
 
     // 从服务列表中获取处理函数
-    var proc = scan.getResponse(path);
+    var proc = scan.getResponse(path, opt_project);
 
     if (proc && 'function' == typeof proc) {
         try {
@@ -205,7 +220,7 @@ exports.serve = function (request, response) {
     }
 
     // 延迟响应请求， 默认为100ms
-    setTimeout( function () {
+    setTimeout(function() {
         // timeout 不返回到客户端
         delete result._timeout;
 
@@ -221,15 +236,15 @@ function service(request, response) {
     if (request.method == 'POST') {
         var data = [];
 
-        request.on('data', function (trunk) {
+        request.on('data', function(trunk) {
             data.push(trunk && trunk.toString());
         });
 
-        request.on('end', function (trunk) {
+        request.on('end', function(trunk) {
             if (trunk) {
                 data.push(trunk.toString());
             }
-            
+
             request.body = data.join('');
             // 转给通用处理函数处理
             exports.serve(request, response);
@@ -241,14 +256,14 @@ function service(request, response) {
 }
 
 // 独立服务运行
-exports.listen = function (port) {
+exports.listen = function(port) {
     port || (port = 8181);
     this._server = require('http').createServer(service);
     this._server.listen(port);
     console.log('mockservice start on port:' + port);
 };
 
-exports.close = function (millies) {
+exports.close = function(millies) {
     var server = this._server;
     console.log('mockservice stoping...');
     setTimeout(function() {
@@ -257,14 +272,14 @@ exports.close = function (millies) {
 };
 
 // 为edp提供服务暴露接口
-exports.request = function (config) {
+exports.request = function(config, opt_project) {
     var me = this;
     me.config(config);
-    return function (context) {
+    return function(context) {
         var request = context.request;
         var response = context.response;
         request.body = request.bodyBuffer;
-        me.serve(request, response);
+        me.serve(request, response, opt_project);
 
         // 阻止其它规则干扰改请求
         context.stop();
@@ -272,8 +287,8 @@ exports.request = function (config) {
 };
 
 // export proxy only for edp
-exports.proxy = function (config) {
-    return function (context) {
+exports.proxy = function(config) {
+    return function(context) {
         var request = context.request;
         var replace = config.replace;
 
@@ -283,7 +298,7 @@ exports.proxy = function (config) {
         }
 
         if (config.host) {
-            config.port = config.port  || 80;
+            config.port = config.port || 80;
             request.headers = config.host + ':' + config.port;
             proxy(config.host, config.port)(context);
         }

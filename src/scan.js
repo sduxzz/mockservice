@@ -20,9 +20,16 @@ var ws = {};
 // `热服务`寻址映射路径
 var pathList = {};
 
+// 不同项目配置不同的路径
+// key: project
+// value: pathList
+var pathListForProject = {}
+
 // 检查文件名是否符合接口定义规则
 function matchPath(file, regs) {
-    regs || (regs = [/\w+_/]);
+    regs || (regs = [
+        /\w+_/
+    ]);
 
     for (var i = 0; i < regs.length; i++) {
         var reg = regs[i];
@@ -48,7 +55,7 @@ function scanDir(cwd) {
 
     if (fs.existsSync(cwd + '/index.js')) {
         var pkg = require(cwd + '/index.js');
-        for (var item in pkg) {
+        for ( var item in pkg) {
             ws[item] = pkg[item];
         }
     }
@@ -58,13 +65,13 @@ function scanDir(cwd) {
         config = require(cwd + '/ms-config.js');
 
         config.customize = true;
-        
+
         // 如果未配置规则列表，继承上级目录配置
         config.pathRegs || (config.pathRegs = preConfig.pathRegs);
     }
 
     var files = fs.readdirSync(cwd);
-    files.forEach( function (file) {
+    files.forEach(function(file) {
 
         // 避免引入.svn中的文件
         if (file.charAt(0) == '.') {
@@ -73,7 +80,7 @@ function scanDir(cwd) {
 
         var pathname = path.join(cwd, file);
         var stat = fs.lstatSync(pathname);
-        
+
         if (stat.isDirectory()) {
             scanDir(pathname);
         } else if (matchPath(file, config.pathRegs)) {
@@ -102,6 +109,64 @@ function scanDir(cwd) {
 exports.scanDir = scanDir;
 
 /**
+ * 为project 配置一个mock数据目录
+ * 为了支持不同的项目，可以配置不同的mock数据目录
+ * 不支持index.js & ms-config.js
+ * @param {string} project 要配置mock数据目录的项目名
+ * @param {string} cwd mock数据目录
+ */
+exports.scanDirByProject = function(project, cwd) {
+    if (!project || !cwd) {
+        return;
+    }
+
+    if (typeof project != 'string') {
+        return;
+    }
+    if (typeof cwd != 'string') {
+        return;
+    }
+
+    // avoid duplicate definition
+    if (pathListForProject[project]) {
+        return;
+    }
+
+    // init pathList for project
+    pathListForProject[project] = {};
+
+    // scan file without regular
+    scanAllFile(pathListForProject[project], cwd, null);
+};
+
+/**
+ * 扫描mock文件
+ * @param {Object} pathList 要加入的pathList
+ * @param {cwd} cwd 当前目录
+ * @param {Reg} options reg 扫描规则
+ */
+function scanAllFile(pathList, cwd, reg) {
+    var files = fs.readdirSync(cwd);
+    files.forEach(function(file) {
+
+        // 避免引入.svn中的文件
+        if (file.charAt(0) == '.') {
+            return true;
+        }
+
+        var pathName = path.join(cwd, file);
+        var stat = fs.lstatSync(pathName);
+
+        if (stat.isDirectory()) {
+            scanAllFile(pathList, pathName, reg);
+        } else if (matchPath(file, reg)) {// 满足接口定义规则 && reg规则
+            var item = file.replace('.js', '');
+            pathList[item] = pathName;
+        }
+    });
+}
+
+/**
  * 模块加载错误提示信息
  * @param  {string} path  请求path
  * @param  {Object} param 请求参数
@@ -119,13 +184,22 @@ function moduleError(path, param) {
 
 /**
  * 获得响应服务函数
- * @param  {string} path 请求path
+ * @param {string} path 请求path
+ * @param {string} opt_project 指定path是哪个project
  * @return {Function}    请求响应函数
  */
-exports.getResponse = function (path) {
+exports.getResponse = function(path, opt_project) {
     // 先检查冷服务是否存在
     if (path in ws) {
         return ws[path];
+    }
+
+    // 从项目配置mock目录查找, 特殊的配置优先
+    if (opt_project) {
+        var list_temp = pathListForProject[opt_project];
+        if (list_temp && path in list_temp) {
+            return getModule(list_temp[path]);
+        }
     }
 
     // 检查热服务是否存在
@@ -149,7 +223,7 @@ exports.getResponse = function (path) {
                 return obj;
             }
         } catch (ex) {
-            
+
             // 预防语法错误导致模块加载失败
             console.log('module error', fileName);
 
@@ -161,3 +235,29 @@ exports.getResponse = function (path) {
 
     return null;
 };
+
+/**
+ * 从path获取模块
+ * @param {string} path 
+ */
+function getModule(path) {
+    var obj = {};
+    try {
+        obj = require(path);
+        if ('function' == typeof obj) {
+            return obj;
+        } else if (obj && path in obj) {
+            return obj[path];
+        } else {
+            return obj;
+        }
+    } catch (ex) {
+
+        // 预防语法错误导致模块加载失败
+        console.log('module error', fileName);
+
+        // 全局错误信息处理方法
+        printError(ex, path);
+        return moduleError;
+    }
+}
