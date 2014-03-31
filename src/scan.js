@@ -198,7 +198,12 @@ exports.getResponse = function(path, opt_project) {
     if (opt_project) {
         var list_temp = pathListForProject[opt_project];
         if (list_temp && path in list_temp) {
-            return getModule(list_temp[path]);
+            // pathListForProject上的模块是不缓存的；
+            var fileName = list_temp[path];
+            if (fileName in require.cache) {
+                delete require.cache[fileName];
+            }
+            return getModule(fileName);
         }
     }
 
